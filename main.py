@@ -55,6 +55,16 @@ if not OPENAI_API_KEY:
 if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN or not TWILIO_PHONE_NUMBER:
     raise ValueError("Missing Twilio configuration. Please set it in the .env file.")
 
+# Startup logging
+print("=" * 60)
+print("🚀 AI Calling Agent Starting Up")
+print("=" * 60)
+print(f"NGROK_URL: {NGROK_URL}")
+print(f"PORT: {PORT}")
+print(f"TWILIO_PHONE_NUMBER: {TWILIO_PHONE_NUMBER}")
+print(f"OpenAI API Key: {'✅ Set' if OPENAI_API_KEY else '❌ Missing'}")
+print("=" * 60)
+
 
 @app.get("/")
 async def health_check():
@@ -130,10 +140,14 @@ async def handle_recording_status(request: Request):
 @app.websocket("/media-stream")
 async def handle_media_stream(websocket: WebSocket):
     """Handle WebSocket connections between Twilio and OpenAI."""
-    print("Client connected")
+    print("=" * 60)
+    print("🔌 Client connected to /media-stream")
+    print("=" * 60)
     await websocket.accept()
+    print("✅ WebSocket accepted")
 
     try:
+        print("🔄 Attempting to connect to OpenAI Realtime API...")
         async with websockets.connect(
             "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01",
             extra_headers={
@@ -141,6 +155,7 @@ async def handle_media_stream(websocket: WebSocket):
                 "OpenAI-Beta": "realtime=v1",
             },
         ) as openai_ws:
+            print("✅ Connected to OpenAI successfully!")
             await send_session_update(openai_ws)
             stream_sid = None
             session_id = None
@@ -208,9 +223,18 @@ async def handle_media_stream(websocket: WebSocket):
 
             await asyncio.gather(receive_from_twilio(), send_to_twilio())
     except Exception as e:
-        print(f"❌ CRITICAL ERROR: Failed to connect to OpenAI Realtime API: {e}")
-        print(f"Make sure your OpenAI API key has Realtime API access")
-        await websocket.close()
+        print("=" * 60)
+        print(f"❌ CRITICAL ERROR in WebSocket handler")
+        print(f"Error Type: {type(e).__name__}")
+        print(f"Error Message: {e}")
+        import traceback
+        print("Full Traceback:")
+        traceback.print_exc()
+        print("=" * 60)
+        try:
+            await websocket.close()
+        except:
+            pass
 
 
 async def send_session_update(openai_ws):
